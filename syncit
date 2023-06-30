@@ -1,0 +1,7 @@
+#! /bin/bash
+
+./syncit.py \
+	--verbose \
+	--tgt=gliders \
+	--output=data \
+	--combo=googleDrive
