@@ -101,8 +101,8 @@ try:
 
     for glider in args.glider:
         log = os.path.join(args.output, f"log.nc")
-        flt = os.path.join(args.output, f"flt.{glider}nc")
-        sci = os.path.join(args.output, f"sci.{glider}nc")
+        flt = os.path.join(args.output, f"flt.{glider}.nc")
+        sci = os.path.join(args.output, f"sci.{glider}.nc")
         logging.info("Working on %s", glider)
         cmd = list(cmdBase)
         cmd.append(flt)
