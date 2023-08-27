@@ -11,6 +11,7 @@ from argparse import ArgumentParser
 import subprocess
 from TPWUtils import Logger
 import logHarvest
+import decodeArgos
 from mkCombined import mkCombo
 import logging
 import glob
@@ -89,6 +90,15 @@ try:
         cmd.extend([src, args.tgt])
         if not runCmd(cmd): sys.exit(1)
 
+    # Grab ARGOS fixes
+    cmd = list(cmdBase)
+    cmd.extend(["--exclude", "ornitela", "ceoas:/home/server/ftp/pub/incoming", args.tgt])
+    if not runCmd(cmd): sys.exit(1)
+
+    decodeArgos.processFiles(
+            os.path.join(args.output, "argos.nc"), 
+            glob.glob(os.path.join(args.tgt, "incoming/*.TXT")))
+    
     logHarvest.processFiles(
             glob.glob(os.path.join(args.tgt, "*/logs/*.log")),
             args.t0,
