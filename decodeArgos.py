@@ -14,15 +14,23 @@ def processFiles(fnNC:str, filenames:list):
         if df is not None: records.append(df)
 
     df = pd.concat(records, ignore_index=True)
-    df = df.set_index("t")
+    df = df.set_index("time")
     ds = df.to_xarray()
     ds.to_netcdf(fnNC)
 
 def procFile(fn:str) -> pd.DataFrame:
-    ident = []
-    time = []
-    lat = []
-    lon = []
+    records = dict(
+            ident = [],
+            nLines = [],
+            nBytes = [],
+            satellite = [],
+            locationClass = [],
+            time = [],
+            lat = [],
+            lon = [],
+            altitude = [],
+            frequency = [],
+            )
 
     with open(fn, "r") as fp:
         for line in fp:
@@ -31,23 +39,25 @@ def procFile(fn:str) -> pd.DataFrame:
                     r"(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(.)\s+(.)\s+(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2}):(\d{2})\s+(\d+[.]\d+)\s+(\d+[.]\d+)\s+(\d+[.]\d+)\s+(\d+)", 
                                line)
             if not matches: continue
-            ident.append(int(matches[2]))
-            time.append(datetime.datetime(
+            records["ident"].append(int(matches[2]))
+            records["nLines"].append(int(matches[3]))
+            records["nBytes"].append(int(matches[4]))
+            records["satellite"].append(matches[5])
+            records["locationClass"].append(matches[6])
+            records["time"].append(datetime.datetime(
                 int(matches[7]), 
                 int(matches[8]), 
                 int(matches[9]),
                 int(matches[10]),
                 int(matches[11]),
                 int(matches[12])))
-            lat.append(float(matches[13]))
-            lon.append(float(matches[14]))
+            records["lat"].append(float(matches[13]))
+            records["lon"].append(float(matches[14]))
+            records["altitude"].append(float(matches[15]))
+            records["frequency"].append(float(matches[16]))
 
-    if len(ident) == 0: return None
-    df = pd.DataFrame()
-    df["ident"] = ident
-    df["t"] = time
-    df["lat"] = lat
-    df["lon"] = lon
+    if len(records["ident"]) == 0: return None
+    df = pd.DataFrame(records)
     return df
 
 if __name__ == "__main__":
