@@ -35,9 +35,9 @@ if __name__ == "__main__":
             help="Single instance unique keyword for locking a process")
     parser.add_argument("--dt", type=float, default=100, help="Time to sleep")
     args = parser.parse_args()
-    
+
     logging.basicConfig(level=logging.DEBUG, format="%(asctime)s %(levelname)s: %(message)s")
-   
+
     try:
         with SingleInstance(args.uniqueName) as single:
             logging.info("Sleeping for %s seconds", args.dt)

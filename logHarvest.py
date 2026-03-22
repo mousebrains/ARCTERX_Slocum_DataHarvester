@@ -12,17 +12,10 @@ import numpy as np
 import os.path
 import datetime
 import re
-import math
 import sys
+from slocum_utils import mkDegrees_scalar as mkDegrees
 
-def mkDegrees(degmin:float) -> float:
-    sgn = -1 if degmin < 0 else +1
-    degmin = abs(degmin)
-    deg = math.floor(degmin / 100)
-    minutes = degmin % 100
-    return sgn * (deg + minutes / 60)
-
-def parseLogFile(fn, glider) -> list:
+def parseLogFile(fn, glider) -> pd.DataFrame:
     logging.debug("Loading %s %s", fn, glider)
     info = {}
     times = []
@@ -33,20 +26,24 @@ def parseLogFile(fn, glider) -> list:
             line = line.strip()
             try:
                 line = str(line, "utf-8")
-            except Exception as e:
+            except UnicodeDecodeError:
                 continue
             matches = re.match(r"^Vehicle Name:\s+(\w+)$", line)
             if matches: glider = matches[1]
 
             matches = re.match(r"^Curr Time:\s+\w+\s+(\w+\s+\d+\s+\d+:\d+:\d+\s+\d+)\s+MT:\s+(\d+)", line)
             if matches:
-                currTime = datetime.datetime.strptime(matches[1], "%b %d %H:%M:%S %Y") \
-                        .replace(tzinfo=datetime.timezone.utc).timestamp()
+                try:
+                    currTime = datetime.datetime.strptime(matches[1], "%b %d %H:%M:%S %Y") \
+                            .replace(tzinfo=datetime.timezone.utc).timestamp()
+                except ValueError:
+                    logging.warning("Invalid timestamp in %s: %s", fn, matches[1])
+                    continue
                 missionTime = int(matches[2])
                 continue
             matches = re.match(r"^GPS Location:\s+(\d+[.]\d+)\s+N\s+(\d+[.]\d+)\s+E\s+measured\s+([+-]?\d+[.]?\d*[e]?[+-]?\d*) secs ago$", line)
             if matches:
-                if not currTime: continue
+                if currTime is None: continue
                 lat = mkDegrees(float(matches[1]))
                 lon = mkDegrees(float(matches[2]))
                 dt = float(matches[3])
@@ -59,12 +56,12 @@ def parseLogFile(fn, glider) -> list:
                 continue
             matches = re.match(r"^sensor:(\w+)[(](.+)[)]=([+-]?\d+[.]?\d*[e]?[+-]?\d*)\s+(\d+[.]?\d*[e]?[+-]?\d*) secs ago$", line)
             if matches:
-                if not currTime: continue
+                if currTime is None: continue
                 name = matches[1]
                 val = float(matches[3])
                 if name.endswith("_lat") or name.endswith("_lon"): val = mkDegrees(val)
                 dt = float(matches[4])
-                if dt > 1e300 or not currTime: continue
+                if dt > 1e300: continue
                 if name not in info: info[name] = []
                 t = currTime - dt
                 times.append(t)
@@ -89,7 +86,7 @@ def parseLogFile(fn, glider) -> list:
                 df.loc[index, "lon"] = row[2]
             else:
                 df.loc[index, key] = row[1]
-    df.t = df.t.astype("datetime64[s]")
+    df["t"] = df["t"].astype("datetime64[s]")
     return df
 
 def processFiles(filenames:list, t0:str, nc:str):
@@ -102,6 +99,11 @@ def processFiles(filenames:list, t0:str, nc:str):
         a = parseLogFile(fn, glider)
         if a is not None and a.t.size:
             items.append(a)
+
+    if not items:
+        logging.warning("No valid log files found, writing empty %s", nc)
+        xr.Dataset().to_netcdf(nc)
+        return
 
     ds = xr.Dataset.from_dataframe(pd.concat(items, ignore_index=True))
     logging.info("Writing %s to %s", ds.sizes, nc)

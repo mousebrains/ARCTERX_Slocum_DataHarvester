@@ -24,10 +24,10 @@ class INotify(Thread):
         if flags is not None:
             self.__flags = flags
         else:
-            self.__flags = pyinotify.IN_CREATE 
-            self.__flags|= pyinotify.IN_MODIFY 
-            self.__flags|= pyinotify.IN_CLOSE_WRITE 
-            self.__flags|= pyinotify.IN_MOVED_TO 
+            self.__flags = pyinotify.IN_CREATE
+            self.__flags|= pyinotify.IN_MODIFY
+            self.__flags|= pyinotify.IN_CLOSE_WRITE
+            self.__flags|= pyinotify.IN_MOVED_TO
             self.__flags|= pyinotify.IN_MOVED_FROM
             self.__flags|= pyinotify.IN_MOVE_SELF
             self.__flags|= pyinotify.IN_DELETE
@@ -49,7 +49,7 @@ class INotify(Thread):
         tgt = os.path.abspath(os.path.expanduser(tgt))
         if os.path.isdir(tgt):
             mask = mask if mask is not None else self.__flags
-            self.__wm.add_watch(path=tgt, mask=mask, proc_fun=self.__eventHandler, 
+            self.__wm.add_watch(path=tgt, mask=mask, proc_fun=self.__eventHandler,
                     rec=qRecursive, auto_add=qAutoAdd)
             logging.info("Added watch for %s, rec %s auto %s msk %s",
                     tgt, qRecursive, qAutoAdd, self.__maskname(mask))

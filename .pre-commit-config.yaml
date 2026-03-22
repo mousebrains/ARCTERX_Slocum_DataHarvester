@@ -1,0 +1,44 @@
+repos:
+  - repo: local
+    hooks:
+      - id: trailing-whitespace
+        name: trim trailing whitespace
+        entry: sed -i '' 's/[[:space:]]*$//'
+        language: system
+        types: [text]
+
+      - id: end-of-file-fixer
+        name: fix end of files
+        entry: bash -c 'for f in "$@"; do [ -s "$f" ] && [ -n "$(tail -c1 "$f")" ] && echo >> "$f"; done; true'
+        language: system
+        types: [text]
+
+      - id: check-merge-conflict
+        name: check for merge conflict markers
+        entry: bash -c '! grep -rlE "^(<<<<<<<|=======|>>>>>>>)" "$@"'
+        language: system
+        types: [text]
+
+      - id: check-yaml
+        name: check yaml syntax
+        entry: python3 -c "import yaml, sys; yaml.safe_load(open(sys.argv[1]))"
+        language: system
+        types: [yaml]
+
+      - id: check-added-large-files
+        name: check for large files
+        entry: bash -c 'for f in "$@"; do size=$(wc -c < "$f"); if [ "$size" -gt 500000 ]; then echo "$f is too large ($size bytes)"; exit 1; fi; done'
+        language: system
+        types: [file]
+
+      - id: python-syntax
+        name: python syntax check
+        entry: python3 -m py_compile
+        language: system
+        types: [python]
+
+      - id: bash-syntax
+        name: bash syntax check
+        entry: bash -n
+        language: system
+        types: [bash]

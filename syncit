@@ -1,6 +1,9 @@
 #! /bin/bash
+set -euo pipefail
 
-./syncit.py \
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+"${SCRIPT_DIR}/syncit.py" \
 	--verbose \
 	--tgt=gliders \
 	--output=data \

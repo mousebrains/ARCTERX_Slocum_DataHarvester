@@ -15,7 +15,7 @@ class Units(float, Enum):
     Miles = Meters / 1609.34
     NauticalMiles = Meters / 1852
 
-def greatCircle(lon1:np.array, lat1:np.array, lon2:np.array, lat2:np.array, 
+def greatCircle(lon1:np.array, lat1:np.array, lon2:np.array, lat2:np.array,
                 units:Units=Units.Meters, criteria:float=1e-12):
     ''' Radius of earth in meters using Vicenty's inverse method '''
 
@@ -52,7 +52,7 @@ def greatCircle(lon1:np.array, lat1:np.array, lon2:np.array, lat2:np.array,
         sinLambda = np.sin(lambdaTerm)
         cosLambda = np.cos(lambdaTerm)
         sinSigma = np.sqrt(
-                (cosU2 * sinLambda)**2 + 
+                (cosU2 * sinLambda)**2 +
                 (cosU1 * sinU2 - sinU1 * cosU2 * cosLambda)**2
                 )
         cosSigma = sinU1 * sinU2 + cosU1 * cosU2 * cosLambda
@@ -65,7 +65,7 @@ def greatCircle(lon1:np.array, lat1:np.array, lon2:np.array, lat2:np.array,
                 (1 - C) * f * sinAlpha * (
                         sigma +
                         C * sinSigma * (
-                            cos2Sigma + 
+                            cos2Sigma +
                             C * cosSigma * (-1 + 2 * cos2Sigma**2)
                             )
                         )
@@ -77,9 +77,9 @@ def greatCircle(lon1:np.array, lat1:np.array, lon2:np.array, lat2:np.array,
     A = 1 + u2/16384 * (4096 + u2 * (-768 + u2 * (320 - 175 * u2)))
     B = u2/1024 * (256 + u2 * (-128 + u2 * (74 - 47 * u2)))
     deltaSigma = B * sinSigma * (
-            cos2Sigma + 
+            cos2Sigma +
             B / 4 * (
-                cosSigma * (-1 + 2 * cos2Sigma**2) - 
+                cosSigma * (-1 + 2 * cos2Sigma**2) -
                 B/6 * cos2Sigma * (-3 + 4 * sinSigma**2) * (-3 + 4 * cos2Sigma**2))
              )
 
@@ -106,12 +106,12 @@ class DistanceDegree:
 
 class Dist2Lon(DistanceDegree):
     def __init__(self, latRef:float, lonRef:float, re:Units=Units.Meters) -> None:
-        DistanceDegree.__init__(self, 
+        DistanceDegree.__init__(self,
                 float(greatCircle(lonRef-0.5, latRef, lonRef+0.5, latRef, re)), lonRef)
 
 class Dist2Lat(DistanceDegree):
     def __init__(self, latRef:float, lonRef:float, re:Units=Units.Meters) -> None:
-        DistanceDegree.__init__(self, 
+        DistanceDegree.__init__(self,
                 float(greatCircle(lonRef, latRef-0.5, lonRef, latRef+0.5, re)), latRef)
 
 if __name__ == "__main__":

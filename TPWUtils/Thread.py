@@ -37,7 +37,7 @@ class Thread(threading.Thread):
             self.__queue.put(e)
 
     @classmethod
-    def isQueueEmpty(cls) -> bool: 
+    def isQueueEmpty(cls) -> bool:
         return cls.__queue.empty()
 
     @classmethod

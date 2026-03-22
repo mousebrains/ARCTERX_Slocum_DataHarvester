@@ -13,19 +13,21 @@ import os.path
 import gsw
 import datetime
 from scipy.interpolate import interp1d
-
-def mkDegrees(degmin:np.array) -> float:
-    qNeg = degmin < 0
-    degmin = np.abs(degmin)
-    deg = np.floor(degmin / 100)
-    minutes = np.mod(degmin, 100)
-    deg = deg + minutes / 60
-    deg[np.abs(deg) > 180] = None
-    return deg
+from slocum_utils import mkDegrees
 
 
-def mkCombo(gld:str, fnOutput:str, fnLog:str, fnFlt:str, fnSci:str) -> None:
+def mkCombo(gld:str, fnOutput:str, fnLog:str, fnFlt:str, fnSci:str) -> bool:
+    for fn in (fnLog, fnFlt, fnSci):
+        if not os.path.isfile(fn):
+            logging.error("Input file not found: %s", fn)
+            return False
+
     with xr.open_dataset(fnLog) as ds:
+        required = {"glider", "t", "lat", "lon", "m_water_vx", "m_water_vy"}
+        missing = required - set(ds.data_vars)
+        if missing:
+            logging.error("Log file %s missing variables: %s", fnLog, missing)
+            return False
         ds = ds.sel(index=ds.index[ds.glider == gld])
         dfLog = pd.DataFrame()
         dfLog["timeu"] = ds.t.data.astype("datetime64[s]").astype(float)
@@ -38,16 +40,21 @@ def mkCombo(gld:str, fnOutput:str, fnLog:str, fnFlt:str, fnSci:str) -> None:
         (t, ix) = np.unique(dfLog.timeu, return_index=True)
         dfLog = dfLog.iloc[ix]
         qLat = np.logical_not(np.isnan(dfLog.latu))
-        latInterp = interp1d(dfLog.timeu[qLat], dfLog.latu[qLat],
-                             bounds_error=False, fill_value="nan")
         qLon = np.logical_not(np.isnan(dfLog.lonu))
-        lonInterp = interp1d(dfLog.timeu[qLon], dfLog.lonu[qLon],
-                             bounds_error=False, fill_value="nan")
-        qLat = np.logical_not(qLat)
-        qLon = np.logical_not(qLon)
-        dfLog.latu[qLat] = latInterp(dfLog.timeu[qLat])
-        dfLog.lonu[qLon] = lonInterp(dfLog.timeu[qLon])
+        if qLat.sum() >= 2:
+            latInterp = interp1d(dfLog.timeu[qLat], dfLog.latu[qLat],
+                                 bounds_error=False, fill_value=np.nan)
+            dfLog.loc[np.logical_not(qLat), "latu"] = latInterp(
+                dfLog.timeu[np.logical_not(qLat)])
+        if qLon.sum() >= 2:
+            lonInterp = interp1d(dfLog.timeu[qLon], dfLog.lonu[qLon],
+                                 bounds_error=False, fill_value=np.nan)
+            dfLog.loc[np.logical_not(qLon), "lonu"] = lonInterp(
+                dfLog.timeu[np.logical_not(qLon)])
         dfLog = dfLog.dropna(axis=0, subset=("u", "v"), how="any")
+        if dfLog.empty:
+            logging.error("No valid log data after filtering for %s", gld)
+            return False
         dfLog = dfLog.set_index("timeu")
 
     with xr.open_dataset(fnFlt) as ds:
@@ -59,22 +66,33 @@ def mkCombo(gld:str, fnOutput:str, fnLog:str, fnFlt:str, fnSci:str) -> None:
         flt = flt[flt.time > 0]
         (t, ix) = np.unique(flt.time, return_index=True)
         flt = flt.iloc[ix]
-        latInterp = interp1d(flt.time, flt.latGPS, bounds_error=False, fill_value="nan")
-        lonInterp = interp1d(flt.time, flt.lonGPS, bounds_error=False, fill_value="nan")
+        if len(flt) < 2:
+            logging.error("Fewer than 2 GPS fixes in %s for %s, cannot interpolate", fnFlt, gld)
+            return False
+        latInterp = interp1d(flt.time, flt.latGPS, bounds_error=False, fill_value=np.nan)
+        lonInterp = interp1d(flt.time, flt.lonGPS, bounds_error=False, fill_value=np.nan)
         flt = flt.dropna(axis=0, subset=flt.columns, how="any")
 
     with xr.open_dataset(fnSci) as ds:
         sci = pd.DataFrame()
         sci["time"] = ds.sci_m_present_time
         sci["t"] = ds.sci_water_temp
-        sci["C"] = ds.sci_water_cond * 10
-        sci["P"] = ds.sci_water_pressure * 10
+        sci["C"] = ds.sci_water_cond * 10  # S/m -> mS/cm for GSW
+        sci["P"] = ds.sci_water_pressure * 10  # bar -> dbar for GSW
         sci = sci.dropna(axis=0, subset=sci.columns, how="any")
         sci = sci[sci.time > 0]
         sci = sci[sci.t > 0]
         sci = sci[sci.P > 0]
         sci["lat"] = latInterp(sci.time)
         sci["lon"] = lonInterp(sci.time)
+        n_before = len(sci)
+        sci = sci.dropna(axis=0, subset=["lat", "lon"], how="any")
+        if sci.empty:
+            logging.error("No science data with valid GPS positions for %s", gld)
+            return False
+        if len(sci) < n_before:
+            logging.info("%s: dropped %d/%d science rows outside GPS time range",
+                         gld, n_before - len(sci), n_before)
         sci["depth"] = -gsw.conversions.z_from_p(sci.P.to_numpy(), sci.lat.to_numpy())
         sci["s"] = gsw.SP_from_C(sci.C.to_numpy(), sci.t.to_numpy(), sci.P.to_numpy())
         sa = gsw.SA_from_SP(sci.s.to_numpy(), sci.P.to_numpy(),
@@ -84,9 +102,15 @@ def mkCombo(gld:str, fnOutput:str, fnLog:str, fnFlt:str, fnSci:str) -> None:
         sci["sigma"] = gsw.density.sigma0(sa, ct)
         sci["rho"] = gsw.density.rho_t_exact(sa, sci.t.to_numpy(), sci.P.to_numpy()) - 1000
         sci = sci.drop(columns=["C", "P"])
+        n_total = len(sci)
         sci = sci.dropna(axis=0, subset=sci.columns[1:], how="any")
         (t, ix) = np.unique(sci.time, return_index=True)
         sci = sci.iloc[ix]
+        logging.info("%s: %d science records (%d dropped during QC)",
+                     gld, len(sci), n_total - len(sci))
+        if sci.empty:
+            logging.error("No valid science data remaining for %s", gld)
+            return False
         sci = sci.set_index("time")
 
     ds = xr.merge([dfLog.to_xarray(), sci.to_xarray()])
@@ -142,7 +166,7 @@ def mkCombo(gld:str, fnOutput:str, fnLog:str, fnFlt:str, fnSci:str) -> None:
             depth = dict(units = "meters",
                          positive = "down",
                          long_name = "depth",
-                         standard_name = "depth",
+                         standard_name = "sea_water_depth",
                          accuracy = 0.01,
                          precision = 0.001,
                          resolution = 0.001,
@@ -161,11 +185,13 @@ def mkCombo(gld:str, fnOutput:str, fnLog:str, fnFlt:str, fnSci:str) -> None:
                          long_name = "potentialTemperature",
                          standard_name = "sea_water_potential_temperature"),
             sigma = dict(units = "kg m-3",
-                       long_name = "potentialDensity",
-                       standard_name = "sea_water_potential_density"),
+                       long_name = "potential density anomaly (sigma-0)",
+                       standard_name = "sea_water_sigma_theta",
+                       comment = "Potential density minus 1000 kg m-3, referenced to 0 dbar"),
             rho = dict(units = "kg m-3",
-                       long_name = "density",
-                       standard_name = "sea_water_density"),
+                       long_name = "density anomaly (rho - 1000)",
+                       standard_name = "sea_water_density",
+                       comment = "In-situ density minus 1000 kg m-3"),
             )
     attrs["lonu"] = attrs["lon"]
     attrs["latu"] = attrs["lat"]
@@ -176,7 +202,7 @@ def mkCombo(gld:str, fnOutput:str, fnLog:str, fnFlt:str, fnSci:str) -> None:
         if key in attrs:
             ds[key].attrs.update(attrs[key])
 
-    now = datetime.datetime.now()
+    now = datetime.datetime.now(datetime.timezone.utc)
 
     ds.attrs.update(dict(
         title = f"{gld} for ARCTERX 2023-IOP",
@@ -191,11 +217,11 @@ def mkCombo(gld:str, fnOutput:str, fnLog:str, fnFlt:str, fnSci:str) -> None:
         ))
 
     encoding = dict(zlib=True, complevel=9)
-    ds.t.encoding.update(encoding)
     for key in ds:
         ds[key].encoding.update(encoding)
 
     ds.to_netcdf(fnOutput)
+    return True
 
 if __name__ == "__main__":
     from argparse import ArgumentParser
@@ -214,10 +240,12 @@ if __name__ == "__main__":
     Logger.mkLogger(args, fmt="%(asctime)s %(levelname)s: %(message)s")
 
     if args.ncFlight is None:
-        args.ncFlight = os.path.join(os.path.dirname(args.ncLog), f"flt{args.glider}.nc")
+        args.ncFlight = os.path.join(os.path.dirname(args.ncLog),
+                                     f"flt.{args.prefix}{args.glider}.nc")
 
     if args.ncScience is None:
-        args.ncScience = os.path.join(os.path.dirname(args.ncLog), f"sci{args.glider}.nc")
+        args.ncScience = os.path.join(os.path.dirname(args.ncLog),
+                                      f"sci.{args.prefix}{args.glider}.nc")
 
     mkCombo(f"{args.prefix}{args.glider}",
             args.output,

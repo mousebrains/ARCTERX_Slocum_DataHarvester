@@ -91,7 +91,7 @@ def common(args:ArgumentParser) -> tuple:
 def install(args:ArgumentParser) -> int:
     (services, timers, toStart, todos) = common(args)
 
-    if args.logdir: args.logdir = makeDirectory(args.logdir, args, True) 
+    if args.logdir: args.logdir = makeDirectory(args.logdir, args, True)
     args.serviceDirectory = makeDirectory(args.serviceDirectory, args)
 
     toCopy = set() # Files that need to be copied

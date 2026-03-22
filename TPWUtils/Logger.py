@@ -34,7 +34,7 @@ def addArgs(parser:ArgumentParser) -> None:
     gg.add_argument("--debug", action="store_true", help="Enable very verbose logging")
     gg.add_argument("--verbose", action="store_true", help="Enable verbose logging")
 
-def mkLogger(args:ArgumentParser, 
+def mkLogger(args:ArgumentParser,
         fmt:str=None,
         name:str=None,
         logLevel:str="WARNING",

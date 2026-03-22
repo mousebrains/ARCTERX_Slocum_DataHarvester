@@ -2,7 +2,7 @@
 #
 # Read a file of SQL commands and execute it
 #
-# This has been tested with PostgreSQL 14 and psycopg 3, 
+# This has been tested with PostgreSQL 14 and psycopg 3,
 # but it should work with most databases
 #
 # April-2023, Pat Welch, pat@mousebrains.com
