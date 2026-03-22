@@ -1,6 +1,6 @@
 # ARCTERX Slocum Data Harvester
 
-Grab Slocum glider data, parse it, collate, and produce CF-1.8 compliant NetCDF files
+Grab Slocum glider data, parse it, collate, and produce CF-1.13 compliant NetCDF files
 for ARCTERX 2023.
 
 ## Installation

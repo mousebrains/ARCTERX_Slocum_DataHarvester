@@ -49,9 +49,12 @@ def parseLogFile(fn, glider) -> pd.DataFrame:
             matches = _RE_GPS.match(line)
             if matches:
                 if currTime is None: continue
-                lat = mkDegrees(float(matches[1]))
-                lon = mkDegrees(float(matches[2]))
-                dt = float(matches[3])
+                try:
+                    lat = mkDegrees(float(matches[1]))
+                    lon = mkDegrees(float(matches[2]))
+                    dt = float(matches[3])
+                except ValueError:
+                    continue
                 if dt > 1e300 or abs(lat) > 90 or abs(lon) > 180: continue
                 t = currTime - dt
                 times.append(t)
@@ -62,9 +65,12 @@ def parseLogFile(fn, glider) -> pd.DataFrame:
             if matches:
                 if currTime is None: continue
                 name = matches[1]
-                val = float(matches[3])
+                try:
+                    val = float(matches[3])
+                    dt = float(matches[4])
+                except ValueError:
+                    continue
                 if name.endswith("_lat") or name.endswith("_lon"): val = mkDegrees(val)
-                dt = float(matches[4])
                 if dt > 1e300: continue
                 if name not in info: info[name] = []
                 t = currTime - dt
