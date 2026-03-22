@@ -15,6 +15,11 @@ import re
 import sys
 from slocum_harvester.slocum_utils import mkDegrees_scalar as mkDegrees
 
+_RE_VEHICLE = re.compile(r"^Vehicle Name:\s+(\w+)$")
+_RE_CURRTIME = re.compile(r"^Curr Time:\s+\w+\s+(\w+\s+\d+\s+\d+:\d+:\d+\s+\d+)\s+MT:\s+(\d+)")
+_RE_GPS = re.compile(r"^GPS Location:\s+(\d+[.]\d+)\s+N\s+(\d+[.]\d+)\s+E\s+measured\s+([+-]?\d+[.]?\d*[e]?[+-]?\d*) secs ago$")
+_RE_SENSOR = re.compile(r"^sensor:(\w+)[(](.+)[)]=([+-]?\d+[.]?\d*[e]?[+-]?\d*)\s+(\d+[.]?\d*[e]?[+-]?\d*) secs ago$")
+
 def parseLogFile(fn, glider) -> pd.DataFrame:
     logging.debug("Loading %s %s", fn, glider)
     info = {}
@@ -28,10 +33,10 @@ def parseLogFile(fn, glider) -> pd.DataFrame:
                 line = str(line, "utf-8")
             except UnicodeDecodeError:
                 continue
-            matches = re.match(r"^Vehicle Name:\s+(\w+)$", line)
+            matches = _RE_VEHICLE.match(line)
             if matches: glider = matches[1]
 
-            matches = re.match(r"^Curr Time:\s+\w+\s+(\w+\s+\d+\s+\d+:\d+:\d+\s+\d+)\s+MT:\s+(\d+)", line)
+            matches = _RE_CURRTIME.match(line)
             if matches:
                 try:
                     currTime = datetime.datetime.strptime(matches[1], "%b %d %H:%M:%S %Y") \
@@ -41,20 +46,19 @@ def parseLogFile(fn, glider) -> pd.DataFrame:
                     continue
                 missionTime = int(matches[2])
                 continue
-            matches = re.match(r"^GPS Location:\s+(\d+[.]\d+)\s+N\s+(\d+[.]\d+)\s+E\s+measured\s+([+-]?\d+[.]?\d*[e]?[+-]?\d*) secs ago$", line)
+            matches = _RE_GPS.match(line)
             if matches:
                 if currTime is None: continue
                 lat = mkDegrees(float(matches[1]))
                 lon = mkDegrees(float(matches[2]))
                 dt = float(matches[3])
                 if dt > 1e300 or abs(lat) > 90 or abs(lon) > 180: continue
-                key="GPS"
-                if key not in info: info[key] = []
                 t = currTime - dt
                 times.append(t)
-                info[key].append((t, lat, lon))
+                if "GPS" not in info: info["GPS"] = []
+                info["GPS"].append((t, lat, lon))
                 continue
-            matches = re.match(r"^sensor:(\w+)[(](.+)[)]=([+-]?\d+[.]?\d*[e]?[+-]?\d*)\s+(\d+[.]?\d*[e]?[+-]?\d*) secs ago$", line)
+            matches = _RE_SENSOR.match(line)
             if matches:
                 if currTime is None: continue
                 name = matches[1]
@@ -67,25 +71,40 @@ def parseLogFile(fn, glider) -> pd.DataFrame:
                 times.append(t)
                 info[name].append((t, val))
 
-    df = pd.DataFrame()
-    df["t"] = np.unique(np.round(np.array(times), -2))
-    df["glider"] = np.array([glider] * df.t.size)
+    if not times:
+        return pd.DataFrame()
+
+    # Build time grid
+    time_bins = np.unique(np.round(np.array(times), -2))
+    n = len(time_bins)
+
+    # Pre-build lookup: rounded_time -> index
+    time_to_idx = {t: i for i, t in enumerate(time_bins)}
+
+    # Allocate numpy arrays for all columns
+    columns = {"t": time_bins, "glider": np.array([glider] * n)}
     for key in sorted(info):
         if key == "GPS":
-            df["lat"] = np.empty(df.t.shape) * np.nan
-            df["lon"] = np.empty(df.t.shape) * np.nan
+            columns["lat"] = np.full(n, np.nan)
+            columns["lon"] = np.full(n, np.nan)
         else:
-            df[key] = np.empty(df.t.shape) * np.nan
+            columns[key] = np.full(n, np.nan)
 
+    # Fill arrays using dict lookup instead of argmin + df.loc
     for key in sorted(info):
         for row in info[key]:
-            row = np.array(row)
-            index = np.argmin(abs(df.t - row[0].round(-2)))
+            rounded = round(row[0], -2)
+            idx = time_to_idx.get(rounded)
+            if idx is None:
+                # Fallback: find nearest bin
+                idx = np.argmin(np.abs(time_bins - rounded))
             if key == "GPS":
-                df.loc[index, "lat"] = row[1]
-                df.loc[index, "lon"] = row[2]
+                columns["lat"][idx] = row[1]
+                columns["lon"][idx] = row[2]
             else:
-                df.loc[index, key] = row[1]
+                columns[key][idx] = row[1]
+
+    df = pd.DataFrame(columns)
     df["t"] = df["t"].astype("datetime64[s]")
     return df
 
