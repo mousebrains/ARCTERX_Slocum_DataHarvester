@@ -30,12 +30,7 @@ pipx install .
 
 Installed automatically via `pip install .`:
 
-numpy, pandas, xarray, scipy, gsw, netcdf4
-
-### Vendored library
-
-**TPWUtils** is a snapshot of git@github.com:mousebrains/TPWUtils.git
-(logging, threading, credential management utilities).
+numpy, pandas, xarray, scipy, gsw, netcdf4, TPWUtils
 
 ## Commands
 

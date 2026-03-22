@@ -19,6 +19,7 @@ dependencies = [
     "scipy",
     "gsw",
     "netcdf4",
+    "TPWUtils",
 ]
 
 [project.scripts]
@@ -27,4 +28,4 @@ decode-argos = "slocum_harvester.decodeArgos:main"
 mk-combined = "slocum_harvester.mkCombined:main"
 
 [tool.setuptools.packages.find]
-include = ["slocum_harvester*", "TPWUtils*"]
+include = ["slocum_harvester*"]
