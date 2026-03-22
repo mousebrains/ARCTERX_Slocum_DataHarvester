@@ -83,11 +83,14 @@ def procFile(fn:str) -> pd.DataFrame | None:
     df = pd.DataFrame(records)
     return df
 
-if __name__ == "__main__":
+def main():
     from argparse import ArgumentParser
-    parser = ArgumentParser()
+    parser = ArgumentParser(description="Decode ARGOS satellite messages into NetCDF")
     parser.add_argument("filename", type=str, nargs="+", help="ARGOS messages to decode")
     parser.add_argument("--nc", type=str, default="tpw.nc", help="Output NetCDF filename")
     args = parser.parse_args()
 
     processFiles(args.nc, args.filename)
+
+if __name__ == "__main__":
+    main()

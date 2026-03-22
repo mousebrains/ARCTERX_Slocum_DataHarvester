@@ -13,7 +13,7 @@ import os.path
 import gsw
 import datetime
 from scipy.interpolate import interp1d
-from slocum_utils import mkDegrees
+from slocum_harvester.slocum_utils import mkDegrees
 
 
 def mkCombo(gld:str, fnOutput:str, fnLog:str, fnFlt:str, fnSci:str) -> bool:
@@ -223,13 +223,13 @@ def mkCombo(gld:str, fnOutput:str, fnLog:str, fnFlt:str, fnSci:str) -> bool:
     ds.to_netcdf(fnOutput)
     return True
 
-if __name__ == "__main__":
+def main():
     from argparse import ArgumentParser
     from TPWUtils import Logger
 
-    parser = ArgumentParser()
+    parser = ArgumentParser(description="Combine glider data into CF-1.8 NetCDF")
     Logger.addArgs(parser)
-    parser.add_argument("--prefix", type=str, default="osu", help="Insitution prefix")
+    parser.add_argument("--prefix", type=str, default="osu", help="Institution prefix")
     parser.add_argument("--glider", type=int, required=True, help="Glider to operate on")
     parser.add_argument("--output", type=str, required=True, help="Output NetCDF filename")
     parser.add_argument("--ncLog", type=str, default="log.nc", help="Input log NetCDF")
@@ -252,3 +252,6 @@ if __name__ == "__main__":
             args.ncLog,
             args.ncFlight,
             args.ncScience)
+
+if __name__ == "__main__":
+    main()

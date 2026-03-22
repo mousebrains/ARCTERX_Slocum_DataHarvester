@@ -10,9 +10,9 @@
 from argparse import ArgumentParser
 import subprocess
 from TPWUtils import Logger
-import logHarvest
-import decodeArgos
-from mkCombined import mkCombo
+from slocum_harvester import logHarvest
+from slocum_harvester import decodeArgos
+from slocum_harvester.mkCombined import mkCombo
 import logging
 import glob
 import os

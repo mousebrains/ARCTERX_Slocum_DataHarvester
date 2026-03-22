@@ -13,7 +13,7 @@ import os.path
 import datetime
 import re
 import sys
-from slocum_utils import mkDegrees_scalar as mkDegrees
+from slocum_harvester.slocum_utils import mkDegrees_scalar as mkDegrees
 
 def parseLogFile(fn, glider) -> pd.DataFrame:
     logging.debug("Loading %s %s", fn, glider)
@@ -109,11 +109,11 @@ def processFiles(filenames:list, t0:str, nc:str):
     logging.info("Writing %s to %s", ds.sizes, nc)
     ds.to_netcdf(nc)
 
-if __name__ == "__main__":
+def main():
     from argparse import ArgumentParser
     from TPWUtils import Logger
 
-    parser = ArgumentParser()
+    parser = ArgumentParser(description="Harvest Slocum glider log files into NetCDF")
     Logger.addArgs(parser)
     parser.add_argument("--t0", type=str, default="20230527T000000", help="Earliest time to consider")
     parser.add_argument("--nc", type=str, default="log.nc", help="Output NetCDF filename")
@@ -126,3 +126,6 @@ if __name__ == "__main__":
         args.filename = glob.glob("osu68?/logs/*.log")
 
     processFiles(args.filename, args.t0, args.nc)
+
+if __name__ == "__main__":
+    main()

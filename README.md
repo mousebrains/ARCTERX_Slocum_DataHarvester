@@ -1,7 +1,21 @@
 # ARCTERX Slocum Data Harvester
 
 Grab Slocum glider data, parse it, collate, and produce CF-1.8 compliant NetCDF files
-for the ARCTERX 2023 In-situ Observation Project.
+for ARCTERX 2023.
+
+## Installation
+
+Install as a Python package (provides `log-harvest`, `decode-argos`, and `mk-combined` commands):
+
+```bash
+pip install .
+```
+
+Or install globally via pipx:
+
+```bash
+pipx install .
+```
 
 ## Required Tools
 
@@ -12,16 +26,11 @@ for the ARCTERX 2023 In-situ Observation Project.
 | `rsync` | Sync glider data from remote servers | System package manager |
 | `dbd2netCDF` | Convert Slocum binary (.sbd/.tbd) files to NetCDF | git@github.com:mousebrains/dbd2netcdf.git |
 
-### Python packages
+### Python dependencies
 
-Install with `pip install -r requirements.txt`:
+Installed automatically via `pip install .`:
 
-- **numpy** — numerical computations
-- **pandas** — tabular data handling
-- **xarray** — N-dimensional datasets and NetCDF I/O
-- **scipy** — interpolation of GPS positions to science times
-- **gsw** — Gibbs Sea Water oceanographic calculations (salinity, density, etc.)
-- **netcdf4** — NetCDF file backend for xarray
+numpy, pandas, xarray, scipy, gsw, netcdf4
 
 ### Vendored library
 
@@ -43,7 +52,8 @@ Runs the full pipeline with `--tgt=gliders --output=data --combo=googleDrive`.
 ### syncit.py
 
 Main orchestrator. Rsyncs glider data from remote servers, then runs each
-processing stage in sequence.
+processing stage in sequence. Not installed as a command — run directly from
+the repository.
 
 ```
 syncit.py [--hostname HOST] [--src SRC] [--glider GLIDER]
@@ -72,13 +82,13 @@ syncit.py [--hostname HOST] [--src SRC] [--glider GLIDER]
 5. Convert science binary files (`.t?d`) → `sci.{glider}.nc`
 6. Combine all sources → `{glider}.nc`
 
-### logHarvest.py
+### log-harvest
 
 Parses Slocum glider log files and extracts GPS positions, sensor readings,
 and water velocity into a single NetCDF file.
 
 ```
-logHarvest.py [--t0 T0] [--nc OUTPUT] [--verbose | --debug] [FILE ...]
+log-harvest [--t0 T0] [--nc OUTPUT] [--verbose | --debug] [FILE ...]
 ```
 
 | Option | Default | Description |
@@ -87,12 +97,12 @@ logHarvest.py [--t0 T0] [--nc OUTPUT] [--verbose | --debug] [FILE ...]
 | `--nc` | `log.nc` | Output NetCDF filename |
 | `FILE` | `osu68?/logs/*.log` | Log files to parse (glob if omitted) |
 
-### decodeArgos.py
+### decode-argos
 
 Decodes ARGOS satellite position messages into a NetCDF file.
 
 ```
-decodeArgos.py [--nc OUTPUT] FILE [FILE ...]
+decode-argos [--nc OUTPUT] FILE [FILE ...]
 ```
 
 | Option | Default | Description |
@@ -100,17 +110,17 @@ decodeArgos.py [--nc OUTPUT] FILE [FILE ...]
 | `--nc` | `tpw.nc` | Output NetCDF filename |
 | `FILE` | (required) | ARGOS message files to decode |
 
-### mkCombined.py
+### mk-combined
 
 Merges log, flight, and science data for a single glider into a CF-1.8
 compliant NetCDF file with derived oceanographic variables (salinity,
 potential temperature, density).
 
 ```
-mkCombined.py --glider ID --output FILE
-              [--prefix PREFIX] [--ncLog FILE]
-              [--ncFlight FILE] [--ncScience FILE]
-              [--verbose | --debug]
+mk-combined --glider ID --output FILE
+            [--prefix PREFIX] [--ncLog FILE]
+            [--ncFlight FILE] [--ncScience FILE]
+            [--verbose | --debug]
 ```
 
 | Option | Default | Description |
@@ -118,19 +128,14 @@ mkCombined.py --glider ID --output FILE
 | `--glider` | (required) | Glider number (e.g., `684`) |
 | `--output` | (required) | Output NetCDF filename |
 | `--prefix` | `osu` | Institution prefix for glider name |
-| `--ncLog` | `log.nc` | Input log NetCDF from logHarvest |
+| `--ncLog` | `log.nc` | Input log NetCDF from log-harvest |
 | `--ncFlight` | auto | Input flight NetCDF (default: `flt.{prefix}{glider}.nc`) |
 | `--ncScience` | auto | Input science NetCDF (default: `sci.{prefix}{glider}.nc`) |
-
-### slocum_utils.py
-
-Shared utility module (not a standalone command). Provides `mkDegrees_scalar()`
-and `mkDegrees()` for converting Slocum DDMM.MM coordinates to decimal degrees.
 
 ## Quick Start
 
 ```bash
-pip install -r requirements.txt
+pip install .
 ./syncit
 ```
 

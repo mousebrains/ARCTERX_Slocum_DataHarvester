@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "slocum-harvester"
+version = "1.0.0"
+description = "Harvest and process Slocum glider data for ARCTERX"
+readme = "README.md"
+license = {text = "GPL-3.0-or-later"}
+requires-python = ">=3.10"
+authors = [
+    {name = "Pat Welch", email = "pat@mousebrains.com"},
+]
+dependencies = [
+    "numpy",
+    "pandas",
+    "xarray",
+    "scipy",
+    "gsw",
+    "netcdf4",
+]
+
+[project.scripts]
+log-harvest = "slocum_harvester.logHarvest:main"
+decode-argos = "slocum_harvester.decodeArgos:main"
+mk-combined = "slocum_harvester.mkCombined:main"
+
+[tool.setuptools.packages.find]
+include = ["slocum_harvester*", "TPWUtils*"]
