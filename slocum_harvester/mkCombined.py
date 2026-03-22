@@ -23,12 +23,13 @@ def mkCombo(gld:str, fnOutput:str, fnLog:str, fnFlt:str, fnSci:str) -> bool:
             return False
 
     with xr.open_dataset(fnLog) as ds:
-        required = {"glider", "t", "m_water_vx", "m_water_vy"}
+        required = {"t", "m_water_vx", "m_water_vy"}
         missing = required - set(ds.data_vars)
         if missing:
             logging.error("Log file %s missing variables: %s", fnLog, missing)
             return False
-        ds = ds.sel(index=ds.index[ds.glider == gld])
+        if gld and "glider" in ds.data_vars:
+            ds = ds.sel(index=ds.index[ds.glider == gld])
         dfLog = pd.DataFrame()
         dfLog["timeu"] = ds.t.data.astype("datetime64[s]").astype(float)
         dfLog["latu"] = ds.lat.data if "lat" in ds else np.full(len(ds.index), np.nan)
@@ -115,7 +116,7 @@ def mkCombo(gld:str, fnOutput:str, fnLog:str, fnFlt:str, fnSci:str) -> bool:
 
     ds = xr.merge([dfLog.to_xarray(), sci.to_xarray()])
 
-    platform = f"TWR Slocum {gld}"
+    platform = f"TWR Slocum {gld}" if gld else "TWR Slocum"
 
     attrs = dict(
             time=dict(units = "seconds since 1970-01-01",
@@ -207,7 +208,7 @@ def mkCombo(gld:str, fnOutput:str, fnLog:str, fnFlt:str, fnSci:str) -> bool:
     now = datetime.datetime.now(datetime.timezone.utc)
 
     ds.attrs.update(dict(
-        title = f"{gld} for ARCTERX 2023-IOP",
+        title = f"{gld} for ARCTERX 2023-IOP" if gld else "ARCTERX 2023-IOP",
         comment = "Salinity is not thermal mass corrected",
         history = f"Generated {now}",
         Conventions = "CF-1.13",
@@ -229,10 +230,10 @@ def main():
     from argparse import ArgumentParser
     from TPWUtils import Logger
 
-    parser = ArgumentParser(description="Combine glider data into CF-1.8 NetCDF")
+    parser = ArgumentParser(description="Combine glider data into CF-1.13 NetCDF")
     Logger.addArgs(parser)
     parser.add_argument("--prefix", type=str, default="osu", help="Institution prefix")
-    parser.add_argument("--glider", type=int, required=True, help="Glider to operate on")
+    parser.add_argument("--glider", type=int, help="Glider number (filters log file by glider ID)")
     parser.add_argument("--output", type=str, required=True, help="Output NetCDF filename")
     parser.add_argument("--ncLog", type=str, default="log.nc", help="Input log NetCDF")
     parser.add_argument("--ncFlight", type=str, help="Input flight NetCDF")
@@ -241,15 +242,21 @@ def main():
 
     Logger.mkLogger(args, fmt="%(asctime)s %(levelname)s: %(message)s")
 
+    gld = f"{args.prefix}{args.glider}" if args.glider is not None else None
+
     if args.ncFlight is None:
+        if gld is None:
+            parser.error("--ncFlight is required when --glider is not specified")
         args.ncFlight = os.path.join(os.path.dirname(args.ncLog),
-                                     f"flt.{args.prefix}{args.glider}.nc")
+                                     f"flt.{gld}.nc")
 
     if args.ncScience is None:
+        if gld is None:
+            parser.error("--ncScience is required when --glider is not specified")
         args.ncScience = os.path.join(os.path.dirname(args.ncLog),
-                                      f"sci.{args.prefix}{args.glider}.nc")
+                                      f"sci.{gld}.nc")
 
-    mkCombo(f"{args.prefix}{args.glider}",
+    mkCombo(gld,
             args.output,
             args.ncLog,
             args.ncFlight,
