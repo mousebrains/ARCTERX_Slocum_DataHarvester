@@ -22,7 +22,7 @@ def mkCombo(gld:str, fnOutput:str, fnLog:str, fnFlt:str, fnSci:str) -> bool:
             logging.error("Input file not found: %s", fn)
             return False
 
-    with xr.open_dataset(fnLog) as ds:
+    with xr.open_dataset(fnLog, engine="netcdf4") as ds:
         required = {"t", "m_water_vx", "m_water_vy"}
         missing = required - set(ds.data_vars)
         if missing:
@@ -58,7 +58,7 @@ def mkCombo(gld:str, fnOutput:str, fnLog:str, fnFlt:str, fnSci:str) -> bool:
             return False
         dfLog = dfLog.set_index("timeu")
 
-    with xr.open_dataset(fnFlt) as ds:
+    with xr.open_dataset(fnFlt, engine="netcdf4") as ds:
         flt = pd.DataFrame()
         flt["time"] = ds.m_present_time
         flt["latGPS"] = mkDegrees(ds.m_gps_lat.data)
@@ -74,7 +74,7 @@ def mkCombo(gld:str, fnOutput:str, fnLog:str, fnFlt:str, fnSci:str) -> bool:
         lonInterp = interp1d(flt.time, flt.lonGPS, bounds_error=False, fill_value=np.nan)
         flt = flt.dropna(axis=0, subset=flt.columns, how="any")
 
-    with xr.open_dataset(fnSci) as ds:
+    with xr.open_dataset(fnSci, engine="netcdf4") as ds:
         sci = pd.DataFrame()
         sci["time"] = ds.sci_m_present_time
         sci["t"] = ds.sci_water_temp
@@ -219,7 +219,7 @@ def mkCombo(gld:str, fnOutput:str, fnLog:str, fnFlt:str, fnSci:str) -> bool:
         project = "ARCTERX 2023-IOP",
         ))
 
-    encoding = dict(zlib=True, complevel=9)
+    encoding = dict(zlib=True, complevel=4)
     for key in ds:
         ds[key].encoding.update(encoding)
 
