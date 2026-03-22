@@ -17,7 +17,7 @@ from slocum_harvester.slocum_utils import mkDegrees_scalar as mkDegrees
 
 _RE_VEHICLE = re.compile(r"^Vehicle Name:\s+(\w+)$")
 _RE_CURRTIME = re.compile(r"^Curr Time:\s+\w+\s+(\w+\s+\d+\s+\d+:\d+:\d+\s+\d+)\s+MT:\s+(\d+)")
-_RE_GPS = re.compile(r"^GPS Location:\s+(\d+[.]\d+)\s+N\s+(\d+[.]\d+)\s+E\s+measured\s+([+-]?\d+[.]?\d*[e]?[+-]?\d*) secs ago$")
+_RE_GPS = re.compile(r"^GPS Location:\s+(-?\d+[.]\d+)\s+N\s+(-?\d+[.]\d+)\s+E\s+measured\s+([+-]?\d+[.]?\d*[e]?[+-]?\d*) secs ago$")
 _RE_SENSOR = re.compile(r"^sensor:(\w+)[(](.+)[)]=([+-]?\d+[.]?\d*[e]?[+-]?\d*)\s+(\d+[.]?\d*[e]?[+-]?\d*) secs ago$")
 
 def parseLogFile(fn, glider) -> pd.DataFrame:

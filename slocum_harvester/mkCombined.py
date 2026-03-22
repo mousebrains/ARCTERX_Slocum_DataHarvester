@@ -23,7 +23,7 @@ def mkCombo(gld:str, fnOutput:str, fnLog:str, fnFlt:str, fnSci:str) -> bool:
             return False
 
     with xr.open_dataset(fnLog) as ds:
-        required = {"glider", "t", "lat", "lon", "m_water_vx", "m_water_vy"}
+        required = {"glider", "t", "m_water_vx", "m_water_vy"}
         missing = required - set(ds.data_vars)
         if missing:
             logging.error("Log file %s missing variables: %s", fnLog, missing)
@@ -31,8 +31,8 @@ def mkCombo(gld:str, fnOutput:str, fnLog:str, fnFlt:str, fnSci:str) -> bool:
         ds = ds.sel(index=ds.index[ds.glider == gld])
         dfLog = pd.DataFrame()
         dfLog["timeu"] = ds.t.data.astype("datetime64[s]").astype(float)
-        dfLog["latu"] = ds.lat
-        dfLog["lonu"] = ds.lon
+        dfLog["latu"] = ds.lat.data if "lat" in ds else np.full(len(ds.index), np.nan)
+        dfLog["lonu"] = ds.lon.data if "lon" in ds else np.full(len(ds.index), np.nan)
         dfLog["u"] = ds.m_water_vx
         dfLog["v"] = ds.m_water_vy
         dfLog = dfLog.dropna(axis=0, subset=dfLog.columns[1:], how="all")
